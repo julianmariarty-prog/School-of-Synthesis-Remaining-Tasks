@@ -1,0 +1,128 @@
+module formula_2_pipe_using_fifos
+(
+    input         clk,
+    input         rst,
+
+    input         arg_vld,
+    input  [31:0] a,
+    input  [31:0] b,
+    input  [31:0] c,
+
+    output        res_vld,
+    output [31:0] res
+);
+
+    wire stage1_fifo_push, stage1_fifo_pop;
+    wire [31:0] stage1_fifo_write_data, stage1_fifo_read_data;
+    wire stage1_fifo_empty, stage1_fifo_full;
+
+    wire stage2_fifo_push, stage2_fifo_pop;
+    wire [31:0] stage2_fifo_write_data, stage2_fifo_read_data;
+    wire stage2_fifo_empty, stage2_fifo_full;
+
+    wire stage3_fifo_push, stage3_fifo_pop;
+    wire [31:0] stage3_fifo_write_data, stage3_fifo_read_data;
+    wire stage3_fifo_empty, stage3_fifo_full;
+
+    // isqrt module signals
+    wire isqrt1_arg_vld, isqrt1_res_vld;
+    wire [31:0] isqrt1_res;
+    wire isqrt2_arg_vld, isqrt2_res_vld;
+    wire [31:0] isqrt2_res;
+    wire isqrt3_arg_vld, isqrt3_res_vld;
+    wire [31:0] isqrt3_res;
+
+
+    flip_flop_fifo_with_counter #(.width(32), .depth(8)) fifo_stage1
+    (
+        .clk        (clk),
+        .rst        (rst),
+        .push       (stage1_fifo_push),
+        .pop        (stage1_fifo_pop),
+        .write_data (stage1_fifo_write_data),
+        .read_data  (stage1_fifo_read_data),
+        .empty      (stage1_fifo_empty),
+        .full       (stage1_fifo_full)
+    );
+
+    assign stage1_fifo_push = arg_vld;
+    assign stage1_fifo_write_data = c;
+
+    assign isqrt1_arg_vld = ~stage1_fifo_empty;
+    assign stage1_fifo_pop = isqrt1_res_vld;
+
+    isqrt_pipe isqrt1
+    (
+        .clk     (clk),
+        .rst     (rst),
+        .arg_vld (isqrt1_arg_vld),
+        .a       (stage1_fifo_read_data),
+        .res_vld (isqrt1_res_vld),
+        .res     (isqrt1_res)
+    );
+
+
+
+    flip_flop_fifo_with_counter #(.width(32), .depth(8)) fifo_stage2
+    (
+        .clk        (clk),
+        .rst        (rst),
+        .push       (stage2_fifo_push),
+        .pop        (stage2_fifo_pop),
+        .write_data (stage2_fifo_write_data),
+        .read_data  (stage2_fifo_read_data),
+        .empty      (stage2_fifo_empty),
+        .full       (stage2_fifo_full)
+    );
+
+    // Store b value and wait for isqrt1 result
+    assign stage2_fifo_push = arg_vld;
+    assign stage2_fifo_write_data = b;
+
+    assign isqrt2_arg_vld = ~stage2_fifo_empty && isqrt1_res_vld;
+    assign stage2_fifo_pop = isqrt2_res_vld; // Pop when isqrt2 result is ready
+
+    isqrt_pipe isqrt2
+    (
+        .clk     (clk),
+        .rst     (rst),
+        .arg_vld (isqrt2_arg_vld),
+        .a       (b + isqrt1_res), // b + isqrt(c)
+        .res_vld (isqrt2_res_vld),
+        .res     (isqrt2_res)
+    );
+
+
+    flip_flop_fifo_with_counter #(.width(32), .depth(8)) fifo_stage3
+    (
+        .clk        (clk),
+        .rst        (rst),
+        .push       (stage3_fifo_push),
+        .pop        (stage3_fifo_pop),
+        .write_data (stage3_fifo_write_data),
+        .read_data  (stage3_fifo_read_data),
+        .empty      (stage3_fifo_empty),
+        .full       (stage3_fifo_full)
+    );
+
+    assign stage3_fifo_push = arg_vld;
+    assign stage3_fifo_write_data = a;
+
+    assign isqrt3_arg_vld = ~stage3_fifo_empty && isqrt2_res_vld;
+    assign stage3_fifo_pop = isqrt3_res_vld; 
+
+    isqrt_pipe isqrt3
+    (
+        .clk     (clk),
+        .rst     (rst),
+        .arg_vld (isqrt3_arg_vld),
+        .a       (a + isqrt2_res), 
+        .res_vld (isqrt3_res_vld),
+        .res     (isqrt3_res)
+    );
+
+    
+    assign res_vld = isqrt3_res_vld;
+    assign res = isqrt3_res;
+
+endmodule
