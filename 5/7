@@ -75,7 +75,6 @@ module formula_2_pipe_using_fifos
         .full       (stage2_fifo_full)
     );
 
-    // Store b value and wait for isqrt1 result
     assign stage2_fifo_push = arg_vld;
     assign stage2_fifo_write_data = b;
 
