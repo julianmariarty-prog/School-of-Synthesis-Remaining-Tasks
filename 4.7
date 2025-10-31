@@ -1,0 +1,121 @@
+//----------------------------------------------------------------------------
+// Task
+//----------------------------------------------------------------------------
+
+module formula_1_pipe
+(
+    input         clk,
+    input         rst,
+
+    input         arg_vld,
+    input  [31:0] a,
+    input  [31:0] b,
+    input  [31:0] c,
+
+    output        res_vld,
+    output [31:0] res
+);
+
+    logic isqrt_a_vld, isqrt_b_vld, isqrt_c_vld;
+    
+    // Выходные сигналы от модулей isqrt
+    logic isqrt_a_res_vld, isqrt_b_res_vld, isqrt_c_res_vld;
+    logic [31:0] isqrt_a_res, isqrt_b_res, isqrt_c_res;
+    
+    logic stage1_vld, stage2_vld;
+    
+    logic [31:0] stage1_sum, stage2_sum;
+
+
+    isqrt isqrt_a (
+        .clk(clk),
+        .rst(rst),
+        .arg_vld(isqrt_a_vld),
+        .x(a),
+        .res_vld(isqrt_a_res_vld),
+        .y(isqrt_a_res)
+    );
+    
+    isqrt isqrt_b (
+        .clk(clk),
+        .rst(rst),
+        .arg_vld(isqrt_b_vld),
+        .x(b),
+        .res_vld(isqrt_b_res_vld),
+        .y(isqrt_b_res)
+    );
+    
+    isqrt isqrt_c (
+        .clk(clk),
+        .rst(rst),
+        .arg_vld(isqrt_c_vld),
+        .x(c),
+        .res_vld(isqrt_c_res_vld),
+        .y(isqrt_c_res)
+    );
+    
+ 
+    assign isqrt_a_vld = arg_vld;
+    assign isqrt_b_vld = arg_vld;
+    assign isqrt_c_vld = arg_vld;
+    
+
+    always_ff @(posedge clk or posedge rst) begin
+        if (rst) begin
+            stage1_vld <= 1'b0;
+            stage1_sum <= 32'b0;
+        end else begin
+            stage1_vld <= isqrt_a_res_vld & isqrt_b_res_vld;
+            if (isqrt_a_res_vld & isqrt_b_res_vld) begin
+                stage1_sum <= isqrt_a_res + isqrt_b_res;
+            end
+        end
+    end
+    
+   
+    always_ff @(posedge clk or posedge rst) begin
+        if (rst) begin
+            stage2_vld <= 1'b0;
+            stage2_sum <= 32'b0;
+            res_vld <= 1'b0;
+            res <= 32'b0;
+        end else begin
+            stage2_vld <= stage1_vld & isqrt_c_res_vld;
+            if (stage1_vld & isqrt_c_res_vld) begin
+                stage2_sum <= stage1_sum + isqrt_c_res;
+            end
+            
+            
+            res_vld <= stage2_vld;
+            res <= stage2_sum;
+        end
+    end
+
+endmodule
+
+    // Task:
+    //
+    // Implement a pipelined module formula_1_pipe that computes the result
+    // of the formula defined in the file formula_1_fn.svh.
+    //
+    // The requirements:
+    //
+    // 1. The module formula_1_pipe has to be pipelined.
+    //
+    // It should be able to accept a new set of arguments a, b and c
+    // arriving at every clock cycle.
+    //
+    // It also should be able to produce a new result every clock cycle
+    // with a fixed latency after accepting the arguments.
+    //
+    // 2. Your solution should instantiate exactly 3 instances
+    // of a pipelined isqrt module, which computes the integer square root.
+    //
+    // 3. Your solution should save dynamic power by properly connecting
+    // the valid bits.
+    //
+    // You can read the discussion of this problem
+    // in the article by Yuri Panchul published in
+    // FPGA-Systems Magazine :: FSM :: Issue ALFA (state_0)
+    // You can download this issue from https://fpga-systems.ru/fsm#state_0
+
