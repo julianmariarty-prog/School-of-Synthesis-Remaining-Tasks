@@ -1,0 +1,114 @@
+module float_discriminant_distributor #(
+    parameter FLEN = 64
+)(
+    input                           clk,
+    input                           rst,
+
+    input                           arg_vld,
+    input        [FLEN - 1:0]       a,
+    input        [FLEN - 1:0]       b,
+    input        [FLEN - 1:0]       c,
+
+    output logic                    res_vld,
+    output logic [FLEN - 1:0]       res,
+    output logic                    res_negative,
+    output logic                    err,
+
+    output logic                    busy
+);
+
+    localparam NUM_UNITS = 5;
+    
+    logic [NUM_UNITS-1:0] unit_busy;
+    logic [NUM_UNITS-1:0] unit_res_vld;
+    logic [NUM_UNITS-1:0] unit_res_negative;
+    logic [NUM_UNITS-1:0] unit_err;
+    logic [FLEN-1:0] unit_res [NUM_UNITS-1:0];
+    
+    logic free_unit_found;
+    logic [$clog2(NUM_UNITS)-1:0] free_unit;
+    
+    always_comb begin
+        free_unit_found = 1'b0;
+        free_unit = '0;
+        for (int i = 0; i < NUM_UNITS; i++) begin
+            if (!unit_busy[i]) begin
+                free_unit_found = 1'b1;
+                free_unit = i;
+                break;
+            end
+        end
+    end
+
+    generate
+        for (genvar i = 0; i < NUM_UNITS; i++) begin
+            float_discriminant #(.FLEN(FLEN)) unit_i (
+                .clk(clk),
+                .rst(rst),
+                .arg_vld(arg_vld && free_unit_found && (free_unit == i)),
+                .a(a),
+                .b(b),
+                .c(c),
+                .res_vld(unit_res_vld[i]),
+                .res(unit_res[i]),
+                .res_negative(unit_res_negative[i]),
+                .err(unit_err[i]),
+                .busy()
+            );
+        end
+    endgenerate
+
+    always_ff @(posedge clk or posedge rst) begin
+        if (rst) begin
+            unit_busy <= '0;
+        end else begin
+            for (int i = 0; i < NUM_UNITS; i++) begin
+                if (arg_vld && free_unit_found && (free_unit == i)) begin
+                    unit_busy[i] <= 1'b1;
+                end
+                if (unit_res_vld[i]) begin
+                    unit_busy[i] <= 1'b0;
+                end
+            end
+        end
+    end
+
+    always_ff @(posedge clk or posedge rst) begin
+        if (rst) begin
+            res_vld <= 1'b0;
+            res <= '0;
+            res_negative <= 1'b0;
+            err <= 1'b0;
+        end else begin
+            res_vld <= |unit_res_vld; // ИЛИ всех valid сигналов
+            for (int i = 0; i < NUM_UNITS; i++) begin
+                if (unit_res_vld[i]) begin
+                    res <= unit_res[i];
+                    res_negative <= unit_res_negative[i];
+                    err <= unit_err[i];
+                end
+            end
+        end
+    end
+
+    assign busy = !free_unit_found;
+
+endmodule
+
+    // Task:
+    //
+    // Implement a module that will calculate the discriminant based
+    // on the triplet of input number a, b, c. The module must be pipelined.
+    // It should be able to accept a new triple of arguments on each clock cycle
+    // and also, after some time, provide the result on each clock cycle.
+    // The idea of the task is similar to the task 04_11. The main difference is
+    // in the underlying module 03_08 instead of formula modules.
+    //
+    // Note 1:
+    // Reuse your file "03_08_float_discriminant.sv" from the Homework 03.
+    //
+    // Note 2:
+    // Latency of the module "float_discriminant" should be clarified from the waveform.
+
+
+
