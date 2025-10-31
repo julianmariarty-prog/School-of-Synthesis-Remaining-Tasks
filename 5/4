@@ -68,7 +68,6 @@ module a_plus_b_using_double_buffers
 
     assign sum_up_valid = a_down_valid & b_down_valid;
 
-    // Sum data is the addition of A and B
     assign sum_up_data = a_down_data + b_down_data;
 
     assign a_down_ready = sum_up_ready & b_down_valid;
