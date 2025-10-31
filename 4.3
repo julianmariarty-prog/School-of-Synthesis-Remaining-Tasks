@@ -1,0 +1,29 @@
+module signed_or_unsigned_mul
+# (
+  parameter n = 8
+)
+(
+  input  [    n - 1:0] a, b,
+  input                signed_mul,
+  output [2 * n - 1:0] res
+);
+
+  
+  wire signed [2*n-1:0] signed_res;
+  wire        [2*n-1:0] unsigned_res;
+  
+ 
+  assign signed_res = $signed(a) * $signed(b);
+  
+  
+  assign unsigned_res = a * b;
+  
+  
+  assign res = signed_mul ? signed_res : unsigned_res;
+
+endmodule
+// Task:
+//
+// Implement a parameterized module
+// that produces either signed or unsigned result
+// of the multiplication depending on the 'signed_mul' input bit.
