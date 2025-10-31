@@ -1,0 +1,77 @@
+//удвоение токенов:каждый входной токен дает два выходных
+module double_tokens
+(
+    input        clk,
+    input        rst,
+    input        a,
+    output logic b,
+    output logic overflow
+);
+    
+    reg [1:0] state, next_state;
+    
+    localparam IDLE       = 2'b00;
+    localparam FIRST_OUT  = 2'b01;
+    localparam SECOND_OUT = 2'b10;
+    
+    reg [7:0] counter;
+    reg has_pending_token; 
+    
+    
+    always @* begin
+        next_state = state;
+        case (state)
+            IDLE: begin
+                if ((a || has_pending_token) && !overflow) 
+                    next_state = FIRST_OUT;
+            end
+            
+            FIRST_OUT: begin
+                next_state = SECOND_OUT;
+            end
+            
+            SECOND_OUT: begin
+                if ((a || has_pending_token) && !overflow)
+                    next_state = FIRST_OUT;
+                else
+                    next_state = IDLE;
+            end
+            default: next_state = IDLE;
+        endcase
+    end
+    
+    
+    always @* begin
+        b = (state == FIRST_OUT || state == SECOND_OUT);
+    end
+    
+
+    always @(posedge clk) begin
+        if (rst) begin
+            state <= IDLE;
+            counter <= 8'b0;
+            overflow <= 1'b0;
+            has_pending_token <= 1'b0;
+        end else begin
+            state <= next_state;
+            
+           
+            if (state == IDLE && a && !overflow) begin
+                has_pending_token <= 1'b1;
+            end else if (state == FIRST_OUT && has_pending_token) begin
+                has_pending_token <= 1'b0;
+            end else if (state == SECOND_OUT && a && !overflow) begin
+                has_pending_token <= 1'b1;
+            end
+            
+          
+            if (!overflow && b) begin
+                if (counter < 200)
+                    counter <= counter + 1;
+                else
+                    overflow <= 1'b1;
+            end
+        end
+    end
+
+endmodule
