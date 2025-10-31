@@ -1,0 +1,36 @@
+module signed_add_with_saturation
+(
+  input  [3:0] a, b,
+  output [3:0] sum
+);
+
+
+  wire [3:0] raw_sum;
+  wire positive_overflow, negative_overflow;
+  
+
+  assign raw_sum = a + b;
+  
+
+  assign positive_overflow = (~a[3] & ~b[3] & raw_sum[3]);  
+  assign negative_overflow = (a[3] & b[3] & ~raw_sum[3]);   
+  
+
+  assign sum = positive_overflow ? 4'b0111 :    
+               negative_overflow ? 4'b1000 :    
+               raw_sum;                         
+
+endmodule
+// Task:
+  //
+  // Implement a module that adds two signed numbers with saturation.
+  //
+  // "Adding with saturation" means:
+  //
+  // When the result does not fit into 4 bits,
+  // and the arguments are positive,
+  // the sum should be set to the maximum positive number.
+  //
+  // When the result does not fit into 4 bits,
+  // and the arguments are negative,
+  // the sum should be set to the minimum negative number.
